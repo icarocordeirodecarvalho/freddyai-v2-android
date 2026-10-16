@@ -1,0 +1,10 @@
+{
+  "appId": "com.freddyai.app",
+  "appName": "FreddyAI",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "android": {
+    "allowMixedContent": false,
+    "webContentsDebuggingEnabled": false
+  }
+}

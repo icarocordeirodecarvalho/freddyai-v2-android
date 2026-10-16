@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+  <meta name="referrer" content="no-referrer" />
+  <meta name="theme-color" content="#02090d" />
+  <title>FreddyAI</title>
+  <link rel="stylesheet" href="./src/styles.css" />
+</head>
+<body>
+<main id="app">
+  <img class="hex" src="./icons/hexagonos.png" alt="" />
+
+  <header class="topo">
+    <button id="btnTravar" class="icone-topo" aria-label="Travar app"><img src="./icons/sair.png" alt="" /></button>
+    <div id="status" class="status-texto" role="status">pronto</div>
+    <button id="btnConfig" class="icone-topo" aria-label="Configurações"><span class="engrenagem">⚙</span></button>
+  </header>
+
+  <div id="pip" class="pip oculto">
+    <video id="video" playsinline muted></video>
+    <span class="pip-ponto"></span><span id="pipModo" class="pip-modo"></span>
+  </div>
+
+  <section class="palco">
+    <div id="avatar" class="avatar">
+      <img id="frame" src="./icons/animation/f1.png" alt="Freddy" />
+    </div>
+    <div id="obs" class="obs oculto"></div>
+  </section>
+
+  <section id="chat" class="chat" aria-live="polite"></section>
+
+  <nav class="botoes">
+    <button id="btnCamera" class="bt" aria-label="Câmera"><img src="./icons/camera.png" alt="" /><small>Visão</small></button>
+    <button id="btnVoz" class="bt" aria-label="Voz do Freddy"><img src="./icons/cartola.png" alt="" /><small>Voz</small></button>
+    <button id="btnDados" class="bt" aria-label="Meus dados"><img src="./icons/android.png" alt="" /><small>Meus dados</small></button>
+  </nav>
+
+  <button id="btnMic" class="mic" aria-label="Falar"><img src="./icons/microfone.png" alt="" /><span id="nivel" class="nivel"></span></button>
+
+  <form id="form" class="entrada">
+    <input id="texto" type="text" placeholder="Fale com o Freddy..." autocomplete="off" autocapitalize="sentences" enterkeyhint="send" />
+    <button id="btnEnviar" type="submit" aria-label="Enviar"><img src="./icons/enviar.png" alt="" /></button>
+  </form>
+
+  <!-- ===== VISÃO ===== -->
+  <section id="sheetVisao" class="sheet oculto">
+    <div class="sheet-cab"><h2>Visão</h2><button class="fechar" data-fechar="sheetVisao">✕</button></div>
+    <div class="sheet-corpo">
+      <div class="modos">
+        <button class="modo" data-modo="off">Desligada</button>
+        <button class="modo" data-modo="atualizacao">Por atualização</button>
+        <button class="modo" data-modo="continuo">Contínua</button>
+      </div>
+      <p class="ajuda"><b>Por atualização:</b> a câmera fica liberada, mas o Freddy só olha quando você manda uma mensagem. Se a cena mudar depois, ele não percebe até você falar de novo.</p>
+      <p class="ajuda"><b>Contínua:</b> ele observa sozinho quando a cena muda (no máximo algumas vezes por minuto). Usa mais internet e cota da API.</p>
+      <p class="ajuda">A câmera desliga sozinha quando o app sai da tela ou fica inativo.</p>
+      <button id="btnVirar" class="botao">Virar câmera</button>
+    </div>
+  </section>
+
+  <!-- ===== MEUS DADOS ===== -->
+  <section id="sheetDados" class="sheet oculto">
+    <div class="sheet-cab"><h2>Meus dados</h2><button class="fechar" data-fechar="sheetDados">✕</button></div>
+    <div class="sheet-corpo">
+      <h3>Lembranças</h3>
+      <p class="ajuda">O que o Freddy sabe sobre você. Tudo fica cifrado neste celular.</p>
+      <div id="listaMem" class="lista"></div>
+      <div class="linha"><input id="novaMem" type="text" placeholder="Adicionar lembrança" maxlength="300" /><button id="btnAddMem" class="botao peq">+</button></div>
+      <h3>Lembretes</h3><div id="listaLemb" class="lista"></div>
+      <h3>Anotações</h3><div id="listaNotas" class="lista"></div>
+      <h3>Atividade do Freddy</h3>
+      <p class="ajuda">Registro das ações que ele fez no seu celular.</p>
+      <div id="listaAud" class="lista"></div>
+    </div>
+  </section>
+
+  <!-- ===== CONFIGURAÇÕES ===== -->
+  <section id="sheetConfig" class="sheet oculto">
+    <div class="sheet-cab"><h2>Configurações</h2><button class="fechar" data-fechar="sheetConfig">✕</button></div>
+    <div class="sheet-corpo">
+
+      <h3>Conexão com a IA</h3>
+      <p class="ajuda">Cole sua chave gratuita do Google AI Studio (aistudio.google.com/apikey). Ela fica guardada cifrada, só neste celular.</p>
+      <input id="chave" type="password" placeholder="Chave da API" autocomplete="off" spellcheck="false" />
+      <div class="linha">
+        <button id="btnSalvarChave" class="botao">Salvar chave</button>
+        <button id="btnTestar" class="botao sec">Testar</button>
+      </div>
+      <label class="campo">Modelo principal<input id="modeloChat" type="text" spellcheck="false" /></label>
+      <label class="campo">Modelo rápido (voz, câmera, pesquisa)<input id="modeloRapido" type="text" spellcheck="false" /></label>
+      <p class="ajuda">Se algum modelo for desativado pelo Google, troque o nome aqui.</p>
+
+      <h3>Voz do Freddy</h3>
+      <label class="chave"><span>Falar as respostas</span><input id="cfgFalar" type="checkbox" /></label>
+      <label class="campo">Voz do aparelho<select id="cfgVoz"></select></label>
+      <label class="campo">Tom (grave ↔ agudo)<input id="cfgPitch" type="range" min="0.3" max="1.2" step="0.01" /></label>
+      <label class="campo">Velocidade<input id="cfgVel" type="range" min="0.6" max="1.3" step="0.01" /></label>
+      <label class="campo">Efeito robô<input id="cfgRobo" type="range" min="0" max="0.6" step="0.01" /></label>
+      <button id="btnTesteVoz" class="botao sec">Ouvir teste</button>
+
+      <h3>Segurança</h3>
+      <label class="chave"><span>Bloqueio biométrico (abrir app e ações sensíveis)</span><input id="cfgBio" type="checkbox" /></label>
+      <label class="chave"><span>Bloquear prints e miniatura em apps recentes</span><input id="cfgJanela" type="checkbox" /></label>
+      <label class="chave"><span>Ações por voz só com a minha voz</span><input id="cfgSoVoz" type="checkbox" /></label>
+      <p class="ajuda" id="vozStatus"></p>
+      <div class="linha">
+        <button id="btnCadVoz" class="botao">Cadastrar minha voz</button>
+        <button id="btnApagarVoz" class="botao sec">Apagar</button>
+      </div>
+      <p class="ajuda">Atenção: a voz é só uma conveniência (uma gravação sua poderia enganar). Ligar, SMS e cadastrar rosto sempre pedem confirmação e biometria.</p>
+
+      <h3>Privacidade</h3>
+      <label class="chave"><span>Guardar histórico da conversa (cifrado)</span><input id="cfgSalvar" type="checkbox" /></label>
+      <button id="btnLimparConversa" class="botao sec">Limpar conversa agora</button>
+
+      <h3>Visão e rostos</h3>
+      <label class="campo">Intervalo no modo contínuo: <b id="rotInt"></b>s<input id="cfgInt" type="range" min="3" max="30" step="1" /></label>
+      <label class="chave"><span>No modo contínuo, comentar mudanças em voz alta</span><input id="cfgComentar" type="checkbox" /></label>
+      <label class="chave"><span>Reconhecimento facial local</span><input id="cfgFaces" type="checkbox" /></label>
+      <p class="ajuda">Só reconhece rostos que você cadastrar, com o consentimento de cada pessoa. Dados faciais são sensíveis: ficam cifrados aqui e nunca saem do celular. As imagens da câmera, porém, são enviadas ao Gemini quando o Freddy olha.</p>
+      <div id="listaRostos" class="lista"></div>
+      <div class="linha"><input id="nomeRosto" type="text" placeholder="Nome da pessoa" maxlength="40" /><button id="btnCadRosto" class="botao peq">Cadastrar</button></div>
+      <p class="ajuda">Para cadastrar: ligue a câmera (Visão), deixe só a pessoa à frente e toque em Cadastrar.</p>
+
+      <h3>Zona de perigo</h3>
+      <button id="btnApagarTudo" class="botao perigo">Apagar TODOS os meus dados</button>
+      <p class="ajuda">FreddyAI 2.0 — a chave do plano gratuito do Gemini pode usar suas conversas para melhorar produtos do Google. Para mais privacidade, use uma chave de projeto com faturamento.</p>
+    </div>
+  </section>
+
+  <!-- ===== CADASTRO DE VOZ ===== -->
+  <section id="sheetVoz" class="sheet oculto">
+    <div class="sheet-cab"><h2>Cadastrar minha voz</h2><button class="fechar" data-fechar="sheetVoz">✕</button></div>
+    <div class="sheet-corpo">
+      <p class="ajuda">Em um lugar silencioso, toque em Gravar e leia a frase em voz normal. São 5 frases.</p>
+      <p id="fraseVoz" class="frase"></p>
+      <p id="progVoz" class="ajuda"></p>
+      <button id="btnGravarVoz" class="botao">Gravar</button>
+    </div>
+  </section>
+
+  <!-- ===== CONFIRMAÇÃO ===== -->
+  <div id="modal" class="modal oculto" role="dialog" aria-modal="true">
+    <div class="modal-caixa">
+      <h3 id="modalTitulo"></h3>
+      <p id="modalTexto"></p>
+      <div class="linha">
+        <button id="modalNao" class="botao sec">Cancelar</button>
+        <button id="modalSim" class="botao">Confirmar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TRAVA ===== -->
+  <div id="trava" class="trava oculto">
+    <img src="./icons/Freddy.png" alt="" />
+    <p>FreddyAI bloqueado</p>
+    <button id="btnDestravar" class="botao">Desbloquear</button>
+  </div>
+
+  <div id="toast" class="toast oculto" role="status"></div>
+</main>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
