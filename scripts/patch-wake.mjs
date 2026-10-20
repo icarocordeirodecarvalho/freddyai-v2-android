@@ -41,7 +41,6 @@ if (!g.includes("vosk-android")) {
 const assets = join(raiz, "app/src/main/assets");
 const destino = join(assets, "model-pt");
 if (!(
-  existsSync(join(destino, "conf")) &&
   existsSync(join(destino, "ivector")) &&
   existsSync(join(destino, "final.mdl")) &&
   existsSync(join(destino, "HCLr.fst")) &&
@@ -75,8 +74,7 @@ if (!(
     .filter(e => e.isDirectory());
   const modelo = pastas.find(e => {
     const raiz = join("/tmp/vosk-pt", e.name);
-    return existsSync(join(raiz, "conf")) &&
-      existsSync(join(raiz, "ivector")) &&
+    return existsSync(join(raiz, "ivector")) &&
       existsSync(join(raiz, "final.mdl")) &&
       existsSync(join(raiz, "HCLr.fst")) &&
       existsSync(join(raiz, "Gr.fst"));
