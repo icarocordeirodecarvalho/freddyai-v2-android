@@ -56,12 +56,22 @@ if (!existsSync(join(destino, "am"))) {
   rmSync("/tmp/vosk-pt", { recursive: true, force: true });
   mkdirSync("/tmp/vosk-pt", { recursive: true });
   execSync(`unzip -q -o ${zip} -d /tmp/vosk-pt`, { stdio: "inherit" });
+  const listar = (dir, prefixo = "") => {
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      console.log("[patch-wake] ZIP:", prefixo + e.name + (e.isDirectory() ? "/" : ""));
+      if (e.isDirectory() && prefixo.split("/").length < 3) {
+        listar(join(dir, e.name), prefixo + e.name + "/");
+      }
+    }
+  };
+  listar("/tmp/vosk-pt");
   const pastas = readdirSync("/tmp/vosk-pt", { withFileTypes: true })
     .filter(e => e.isDirectory());
-  if (pastas.length !== 1 || !existsSync(join("/tmp/vosk-pt", pastas[0].name, "am"))) {
+  const modelo = pastas.find(e => existsSync(join("/tmp/vosk-pt", e.name, "am")));
+  if (!modelo) {
     console.error("[patch-wake] Estrutura inesperada no modelo Vosk.");
     process.exit(1);
   }
-  renameSync(join("/tmp/vosk-pt", pastas[0].name), destino);
+  renameSync(join("/tmp/vosk-pt", modelo.name), destino);
 }
 console.log("[patch-wake] ok");
