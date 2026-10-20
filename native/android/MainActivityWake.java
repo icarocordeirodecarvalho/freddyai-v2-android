@@ -26,14 +26,14 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         FreddyEscutaService.definirAppVisivel(true); // o microfone é do app enquanto ele está na tela
         FreddyEscutaService.cancelarAviso(this);
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         FreddyEscutaService.definirAppVisivel(false);
     }
