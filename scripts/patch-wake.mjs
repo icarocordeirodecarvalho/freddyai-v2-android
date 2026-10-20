@@ -40,7 +40,13 @@ if (!g.includes("vosk-android")) {
 // ---------- Modelo de voz (pt) ----------
 const assets = join(raiz, "app/src/main/assets");
 const destino = join(assets, "model-pt");
-if (!existsSync(join(destino, "am"))) {
+if (!(
+  existsSync(join(destino, "conf")) &&
+  existsSync(join(destino, "ivector")) &&
+  existsSync(join(destino, "final.mdl")) &&
+  existsSync(join(destino, "HCLr.fst")) &&
+  existsSync(join(destino, "Gr.fst"))
+)) {
   const url = "https://alphacephei.com/vosk/models/vosk-model-small-pt-0.3.zip";
   const zip = "/tmp/vosk-model-pt.zip";
   console.log("[patch-wake] baixando modelo de voz:", url);
@@ -67,9 +73,16 @@ if (!existsSync(join(destino, "am"))) {
   listar("/tmp/vosk-pt");
   const pastas = readdirSync("/tmp/vosk-pt", { withFileTypes: true })
     .filter(e => e.isDirectory());
-  const modelo = pastas.find(e => existsSync(join("/tmp/vosk-pt", e.name, "am")));
+  const modelo = pastas.find(e => {
+    const raiz = join("/tmp/vosk-pt", e.name);
+    return existsSync(join(raiz, "conf")) &&
+      existsSync(join(raiz, "ivector")) &&
+      existsSync(join(raiz, "final.mdl")) &&
+      existsSync(join(raiz, "HCLr.fst")) &&
+      existsSync(join(raiz, "Gr.fst"));
+  });
   if (!modelo) {
-    console.error("[patch-wake] Estrutura inesperada no modelo Vosk.");
+    console.error("[patch-wake] Estrutura inesperada: faltam arquivos essenciais do modelo Vosk.");
     process.exit(1);
   }
   renameSync(join("/tmp/vosk-pt", modelo.name), destino);
