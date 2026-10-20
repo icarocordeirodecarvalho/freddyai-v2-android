@@ -3,44 +3,151 @@
 import { API_BASE } from "./config.js";
 import { Store } from "./storage.js";
 
-let chave = null;
+const TIMEOUT_MS = 30_000;
+
+/** Erro com "tipo": cota | rede | timeout | servidor | chave | modelo | cancelado | outro */
+export function criarErro(tipo, mensagem, extra = {}) {
+  const e = new Error(mensagem);
+  e.tipo = tipo;
+  Object.assign(e, extra);
+  return e;
+}
+/** Falhas temporárias: vale guardar na fila / tentar o plano B. */
+export const recuperavel = (e) => ["cota", "rede", "timeout", "servidor"].includes(e?.tipo);
+export const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Faz um fetch com limite de tempo e liga o cancelamento externo. */
+export async function fetchComTempo(url, init, sinal, ms = TIMEOUT_MS) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort("timeout"), ms);
+  const cancelar = () => ctl.abort("usuario");
+  sinal?.addEventListener("abort", cancelar);
+  try {
+    return await fetch(url, { ...init, signal: ctl.signal, referrerPolicy: "no-referrer", credentials: "omit" });
+  } catch {
+    if (sinal?.aborted) throw criarErro("cancelado", "Cancelado.");
+    if (ctl.signal.reason === "timeout") throw criarErro("timeout", "A IA demorou demais para responder.");
+    throw criarErro("rede", "Sem conexão com a internet.");
+  } finally {
+    clearTimeout(timer);
+    sinal?.removeEventListener("abort", cancelar);
+  }
+}
+
+function tipoDoStatus(status, msg) {
+  if (status === 429) return "cota";
+  if (status === 401 || status === 403 || (status === 400 && /API key/i.test(msg))) return "chave";
+  if (status === 404) return "modelo";
+  if (status >= 500) return "servidor";
+  return "outro";
+}
+
+function textoErro(tipo, status) {
+  return (
+    {
+      cota: "Limite de uso da IA atingido.",
+      chave: "A chave foi recusada (verifique se está correta e ativa).",
+      modelo: "Modelo não encontrado. Troque o nome do modelo nas Configurações.",
+      servidor: "O servidor da IA está instável agora.",
+    }[tipo] || `Erro da API (${status}).`
+  );
+}
+
+/** Lê "retryDelay" (ex.: "34s") do corpo de erro do Google, ou o cabeçalho Retry-After. */
+function esperaSugerida(r, corpo) {
+  const h = Number(r.headers.get("retry-after"));
+  if (h > 0) return Math.ceil(h);
+  const d = corpo?.error?.details?.find((x) => /RetryInfo/.test(x["@type"] || ""))?.retryDelay;
+  const m = /^(\d+(?:\.\d+)?)s$/.exec(d || "");
+  return m ? Math.ceil(Number(m[1])) : null;
+}
+
+// Duas chaves (de projetos diferentes do Google): principal e reserva.
+// Se uma bater a cota (429), a outra assume — cada projeto tem a sua própria cota.
+const chaves = [null, null];
+const bloqueadaAte = [0, 0]; // timestamp até quando cada chave fica "de molho"
+let ultimaUsada = 0;
 
 export const Gemini = {
   async carregarChave() {
-    chave = await Store.get("apikey", null);
-    return !!chave;
+    chaves[0] = await Store.get("apikey", null);
+    chaves[1] = await Store.get("apikey2", null);
+    return !!(chaves[0] || chaves[1]);
   },
-  async salvarChave(k) {
-    chave = k.trim();
-    await Store.set("apikey", chave);
+  async salvarChave(k, idx = 0) {
+    chaves[idx] = k.trim();
+    bloqueadaAte[idx] = 0;
+    await Store.set(idx ? "apikey2" : "apikey", chaves[idx]);
   },
-  async apagarChave() {
-    chave = null;
-    await Store.remove("apikey");
+  async apagarChave(idx = 0) {
+    chaves[idx] = null;
+    await Store.remove(idx ? "apikey2" : "apikey");
   },
-  temChave: () => !!chave,
+  temChave: (idx) => (idx == null ? !!(chaves[0] || chaves[1]) : !!chaves[idx]),
+  /** 0 = principal, 1 = reserva (a que respondeu por último) */
+  ultimaChave: () => ultimaUsada,
 
-  async _post(modelo, corpo, sinal) {
-    if (!chave) throw new Error("Falta a chave da API. Abra Configurações e cole sua chave do Google AI Studio.");
-    const r = await fetch(`${API_BASE}/models/${encodeURIComponent(modelo)}:generateContent`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-goog-api-key": chave },
-      body: JSON.stringify(corpo),
-      signal: sinal,
-      referrerPolicy: "no-referrer",
-      credentials: "omit",
-    });
-    if (!r.ok) {
-      let msg = "";
+  /** Uma tentativa numa chave específica (com 1 repetição para rede/servidor). */
+  async _postUma(chave, modelo, corpo, sinal) {
+    for (let tentativa = 1; ; tentativa++) {
+      let r;
       try {
-        msg = (await r.json())?.error?.message || "";
+        r = await fetchComTempo(
+          `${API_BASE}/models/${encodeURIComponent(modelo)}:generateContent`,
+          { method: "POST", headers: { "Content-Type": "application/json", "x-goog-api-key": chave }, body: JSON.stringify(corpo) },
+          sinal
+        );
+      } catch (e) {
+        if ((e.tipo === "rede" || e.tipo === "timeout") && tentativa < 2) {
+          await esperar(1500);
+          continue;
+        }
+        throw e;
+      }
+      if (r.ok) return r.json();
+      let j = null;
+      try {
+        j = await r.json();
       } catch {}
-      const e = new Error(erroAmigavel(r.status, msg));
-      e.status = r.status;
-      e.bruto = msg;
-      throw e;
+      const bruto = j?.error?.message || "";
+      const tipo = tipoDoStatus(r.status, bruto);
+      if (tipo === "servidor" && tentativa < 2) {
+        await esperar(1500);
+        continue;
+      }
+      throw criarErro(tipo, textoErro(tipo, r.status), { status: r.status, bruto, esperaSeg: esperaSugerida(r, j) });
     }
-    return r.json();
+  },
+
+  /** Escolhe a chave: pula as que estão sem cota e passa para a reserva. */
+  async _post(modelo, corpo, sinal) {
+    if (!chaves[0] && !chaves[1]) throw criarErro("chave", "Falta a chave da API. Abra Configurações e cole sua chave do Google AI Studio.");
+    const agora = Date.now();
+    const candidatas = [0, 1].filter((i) => chaves[i] && bloqueadaAte[i] <= agora);
+    if (!candidatas.length) {
+      const resta = Math.min(...[0, 1].filter((i) => chaves[i]).map((i) => bloqueadaAte[i])) - agora;
+      throw criarErro("cota", textoErro("cota"), { esperaSeg: Math.max(10, Math.ceil(resta / 1000)) });
+    }
+    // começa pela que respondeu por último (evita ficar batendo na que está sem cota)
+    candidatas.sort((a, b) => (a === ultimaUsada ? -1 : b === ultimaUsada ? 1 : a - b));
+    let ultimoErro = null;
+    for (const i of candidatas) {
+      try {
+        const r = await this._postUma(chaves[i], modelo, corpo, sinal);
+        ultimaUsada = i;
+        return r;
+      } catch (e) {
+        if (e.tipo === "cota") bloqueadaAte[i] = Date.now() + Math.max(20, e.esperaSeg || 60) * 1000;
+        else if (e.tipo === "chave" && candidatas.length > 1) bloqueadaAte[i] = Date.now() + 10 * 60_000;
+        else throw e;
+        ultimoErro = e;
+      }
+    }
+    if (ultimoErro?.tipo === "cota") {
+      const libera = Math.min(...[0, 1].filter((i) => chaves[i]).map((i) => bloqueadaAte[i]));
+      ultimoErro.esperaSeg = Math.max(10, Math.ceil((libera - Date.now()) / 1000));
+    }
+    throw ultimoErro;
   },
 
   /** Uma chamada simples. Tenta sem "thinkingConfig" se o modelo não aceitar. */
@@ -102,8 +209,10 @@ export const Gemini = {
     return textoDe(j).trim();
   },
 
-  async testar(modelo) {
-    const j = await this._post(modelo, { contents: [{ role: "user", parts: [{ text: "Responda apenas: ok" }] }] });
+  /** Testa uma chave específica (0 = principal, 1 = reserva). */
+  async testar(modelo, idx = 0) {
+    if (!chaves[idx]) throw criarErro("chave", "Essa chave ainda não foi salva.");
+    const j = await this._postUma(chaves[idx], modelo, { contents: [{ role: "user", parts: [{ text: "Responda apenas: ok" }] }] });
     return textoDe(j);
   },
 };
@@ -114,13 +223,4 @@ export function textoDe(j) {
     .map((p) => p.text)
     .join("")
     .trim();
-}
-
-function erroAmigavel(status, msg) {
-  if (status === 400 && /API key/i.test(msg)) return "Chave de API inválida.";
-  if (status === 401 || status === 403) return "A chave foi recusada (verifique se está correta e ativa).";
-  if (status === 404) return "Modelo não encontrado. Troque o nome do modelo nas Configurações.";
-  if (status === 429) return "Limite de uso da API atingido. Espere um pouco e tente de novo.";
-  if (status >= 500) return "O servidor do Gemini está instável agora. Tente de novo.";
-  return "Erro da API (" + status + ").";
 }

@@ -255,3 +255,6 @@ export async function executar(chamada, ctx) {
   Auditoria.registrar(f.nome, JSON.stringify(chamada.args || {}).slice(0, 180), resultado.erro ? "erro: " + resultado.erro : resultado.cancelado ? "cancelado" : "ok").catch(() => {});
   return resultado;
 }
+
+/** Ferramentas disponíveis no plano B (sem web e sem câmera). */
+export const ferramentasPlanoB = () => FERRAMENTAS.filter((f) => !["pesquisar_web", "cadastrar_rosto"].includes(f.nome));

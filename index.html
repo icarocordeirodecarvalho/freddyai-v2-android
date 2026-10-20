@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
+        content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: data:; connect-src 'self' https://generativelanguage.googleapis.com https://api.groq.com; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'" />
   <meta name="referrer" content="no-referrer" />
   <meta name="theme-color" content="#02090d" />
   <title>FreddyAI</title>
@@ -42,7 +42,11 @@
 
   <button id="btnMic" class="mic" aria-label="Falar"><img src="./icons/microfone.png" alt="" /><span id="nivel" class="nivel"></span></button>
 
+  <div id="anexoPrev" class="anexo oculto"><img id="anexoImg" alt="Foto anexada" /><button id="anexoX" type="button" aria-label="Remover foto">✕</button></div>
+
   <form id="form" class="entrada">
+    <button id="btnClipe" type="button" class="clipe" aria-label="Anexar foto">📎</button>
+    <input id="arquivo" type="file" accept="image/*" class="oculto" />
     <input id="texto" type="text" placeholder="Fale com o Freddy..." autocomplete="off" autocapitalize="sentences" enterkeyhint="send" />
     <button id="btnEnviar" type="submit" aria-label="Enviar"><img src="./icons/enviar.png" alt="" /></button>
   </form>
@@ -59,7 +63,12 @@
       <p class="ajuda"><b>Por atualização:</b> a câmera fica liberada, mas o Freddy só olha quando você manda uma mensagem. Se a cena mudar depois, ele não percebe até você falar de novo.</p>
       <p class="ajuda"><b>Contínua:</b> ele observa sozinho quando a cena muda (no máximo algumas vezes por minuto). Usa mais internet e cota da API.</p>
       <p class="ajuda">A câmera desliga sozinha quando o app sai da tela ou fica inativo.</p>
-      <button id="btnVirar" class="botao">Virar câmera</button>
+      <h3>Qual câmera usar</h3>
+      <div class="modos">
+        <button class="modo cam" data-cam="frontal">Câmera frontal</button>
+        <button class="modo cam" data-cam="traseira">Câmera traseira</button>
+      </div>
+      <p class="ajuda">A frontal é o padrão. Se a câmera já estiver ligada, a troca acontece na hora.</p>
     </div>
   </section>
 
@@ -95,6 +104,24 @@
       <label class="campo">Modelo rápido (voz, câmera, pesquisa)<input id="modeloRapido" type="text" spellcheck="false" /></label>
       <p class="ajuda">Se algum modelo for desativado pelo Google, troque o nome aqui.</p>
 
+      <h3>Chave reserva do Gemini (opcional)</h3>
+      <p class="ajuda">Use uma chave de OUTRO projeto do Google AI Studio: se a principal ficar sem cota, esta assume sozinha.</p>
+      <input id="chave2" type="password" placeholder="Chave reserva do Gemini" autocomplete="off" spellcheck="false" />
+      <div class="linha">
+        <button id="btnSalvarChave2" class="botao">Salvar chave</button>
+        <button id="btnTestarChave2" class="botao sec">Testar</button>
+      </div>
+
+      <h3>Plano B: Groq (opcional)</h3>
+      <p class="ajuda">Se o Gemini falhar ou ficar sem cota, o Groq responde no lugar (sem ver imagens e sem pesquisar na web). Crie a chave em console.groq.com/keys. Deixe vazio e salve para remover.</p>
+      <input id="chaveGroq" type="password" placeholder="Chave do Groq" autocomplete="off" spellcheck="false" />
+      <div class="linha">
+        <button id="btnSalvarGroq" class="botao">Salvar chave</button>
+        <button id="btnTestarGroq" class="botao sec">Testar</button>
+      </div>
+      <label class="campo">Modelo do Groq<input id="modeloGroq" type="text" spellcheck="false" /></label>
+      <label class="campo">Modelo de voz do Groq<input id="modeloGroqVoz" type="text" spellcheck="false" /></label>
+
       <h3>Voz do Freddy</h3>
       <label class="chave"><span>Falar as respostas</span><input id="cfgFalar" type="checkbox" /></label>
       <label class="campo">Voz do aparelho<select id="cfgVoz"></select></label>
@@ -113,6 +140,12 @@
         <button id="btnApagarVoz" class="botao sec">Apagar</button>
       </div>
       <p class="ajuda">Atenção: a voz é só uma conveniência (uma gravação sua poderia enganar). Ligar, SMS e cadastrar rosto sempre pedem confirmação e biometria.</p>
+
+      <h3>Chamar por voz: "Ei Freddy" (beta)</h3>
+      <label class="chave"><span>Abrir o Freddy quando eu disser "Ei Freddy"</span><input id="cfgEi" type="checkbox" /></label>
+      <p class="ajuda" id="eiStatus"></p>
+      <p class="ajuda">Funciona com o app fora da tela. O reconhecimento é feito no próprio celular (offline) e o áudio não é enviado a ninguém, mas o microfone fica ligado (ponto verde + notificação fixa) e gasta bateria. O Freddy abre por cima do app que você estiver usando, em tela cheia. Com o bloqueio biométrico ligado, ele pede a digital antes de ouvir. Pode errar ou não ouvir em ambientes barulhentos.</p>
+      <button id="btnSobrepor" class="botao sec">Permitir abrir sobre outros apps</button>
 
       <h3>Privacidade</h3>
       <label class="chave"><span>Guardar histórico da conversa (cifrado)</span><input id="cfgSalvar" type="checkbox" /></label>

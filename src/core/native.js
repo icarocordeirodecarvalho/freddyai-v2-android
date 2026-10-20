@@ -5,6 +5,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 
 export const isNative = Capacitor.isNativePlatform();
 const P = isNative ? registerPlugin("FreddyNative") : null;
+const E = isNative ? registerPlugin("FreddyEscuta") : null;
 
 const soNoApp = () => {
   throw new Error("Essa função só existe no app Android.");
@@ -138,5 +139,32 @@ export const Notificacoes = {
     if (!isNative) return;
     const p = await LocalNotifications.getPending();
     if (p.notifications.length) await LocalNotifications.cancel({ notifications: p.notifications });
+  },
+};
+
+// ---------------- "Ei Freddy" (serviço nativo, escuta offline) ----------------
+export const Escuta = {
+  disponivel: isNative,
+  async status() {
+    try {
+      return await E.status();
+    } catch {
+      return { ativo: false, sobreposicao: false, microfone: false, modeloOk: false, semPlugin: true };
+    }
+  },
+  iniciar: () => E.iniciar(),
+  parar: () => E.parar(),
+  pedirSobreposicao: () => E.pedirSobreposicao(),
+  async pendente() {
+    try {
+      return isNative ? (await E.ativacaoPendente()).ativar : false;
+    } catch {
+      return false;
+    }
+  },
+  aoAtivar(cb) {
+    try {
+      if (isNative) E.addListener("ativado", cb);
+    } catch {}
   },
 };

@@ -40,7 +40,7 @@ export class Visao {
       this.ultimaObs = null;
       this.ultimaMini = null;
     } else {
-      if (!this.camera.ativa()) await this.camera.ligar();
+      if (!this.camera.ativa()) await this.camera.ligar(Config.valores.cameraFrontal);
       this.tocou();
       if (Config.valores.facesAtivo) Rostos.preparar().catch((e) => this.cb.onAviso?.("Reconhecimento facial indisponível: " + e.message));
       if (modo === "continuo") {

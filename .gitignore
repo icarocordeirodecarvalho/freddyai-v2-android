@@ -1,6 +1,9 @@
 node_modules/
 dist/
-android/
+/android/
 public/models/
 *.keystore
 .env
+
+.env.*
+*.jks

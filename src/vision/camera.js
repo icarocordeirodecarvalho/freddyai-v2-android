@@ -5,7 +5,7 @@ export class Camera {
   constructor(video) {
     this.video = video;
     this.stream = null;
-    this.frente = false;
+    this.frente = true; // padrão: câmera frontal
     this.c = document.createElement("canvas");
     this.mini = document.createElement("canvas");
     this.mini.width = 32;
@@ -28,6 +28,7 @@ export class Camera {
       throw new Error("Sem permissão para usar a câmera.");
     }
     this.video.srcObject = this.stream;
+    this.video.classList.toggle("espelho", frente); // pré-visualização espelhada na frontal
     await this.video.play();
   }
 

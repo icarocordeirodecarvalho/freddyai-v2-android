@@ -5,6 +5,8 @@ export const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
 export const PADRAO = {
   modeloChat: "gemini-3.6-flash",
   modeloRapido: "gemini-3.5-flash-lite", // transcrição e observação de câmera
+  groqModelo: "openai/gpt-oss-120b", // plano B (texto)
+  groqVoz: "whisper-large-v3-turbo", // plano B (transcrição)
 
   // voz
   falarRespostas: true,
@@ -12,6 +14,9 @@ export const PADRAO = {
   vozPitch: 0.62,
   vozVelocidade: 0.92,
   vozRobo: 0.35, // 0..0.6 — quanto de efeito "animatrônico"
+
+  // chamar por voz
+  eiFreddy: false,
 
   // segurança
   bloqueioBiometrico: true,
@@ -23,6 +28,7 @@ export const PADRAO = {
   salvarConversa: true,
 
   // visão
+  cameraFrontal: true, // câmera usada na visão (true = frontal, false = traseira)
   visaoIntervaloSeg: 6,
   comentarMudancas: false,
   facesAtivo: false,

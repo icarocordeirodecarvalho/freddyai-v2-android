@@ -30,7 +30,15 @@ Assistente pessoal com a personalidade do Glamrock Freddy, feito para virar app 
 | Ver imagens | Câmera → Gemini |
 | Visão **por atualização** | Câmera liberada; ele só vê um quadro **quando você manda mensagem** |
 | Visão **contínua** | Observa sozinho quando a cena muda (limite por minuto, sem ferramentas) |
+| Conhecer os animatrônicos | Lore (`lore.js`) + aparência (`aparencia.js`): entram no prompt só os citados — ou todos, quando há imagem |
+| Plano B e fila | Se o Gemini falhar: tenta de novo, depois responde pelo **Groq** (texto/voz); se tudo falhar, a mensagem entra numa **fila** cifrada e é enviada sozinha quando voltar (app aberto) |
 | Reconhecer rostos | Local (face-api), só rostos **cadastrados**, desligado por padrão |
+
+## "Ei Freddy" (beta) e chave reserva
+
+- **Ei Freddy:** serviço nativo (`FreddyEscutaService`) com reconhecimento **offline** (Vosk, modelo pt pequeno, ~30 MB, baixado pelo workflow). Liga em ⚙ → *Chamar por voz*. Precisa da permissão "Exibir sobre outros apps". Ao ouvir, abre o Freddy por cima do app atual (tela cheia) e já começa a ouvir; se o Android bloquear a abertura direta, aparece uma notificação para tocar.
+- O workflow precisa do passo `node scripts/patch-wake.mjs` **depois** de todos os `patch-android` e **antes** do gradle.
+- **Chave reserva do Gemini:** use uma chave de OUTRO projeto; se a principal bater a cota, a reserva assume sozinha.
 
 ## Segurança (o que é imposto em código)
 
@@ -50,6 +58,7 @@ Assistente pessoal com a personalidade do Glamrock Freddy, feito para virar app 
 - Reconhecimento de voz do dono é fraco contra gravações. Reconhecimento facial depende de luz e pode errar; não use como segurança.
 - Plano gratuito do Gemini tem cota (a visão contínua gasta bastante) e pode usar seus dados para melhorar produtos Google.
 - Lembretes exatos precisam da permissão "Alarmes e lembretes" do Android; sem ela podem atrasar alguns minutos.
+- O plano B (Groq) não vê imagens nem pesquisa na web. Modelo padrão `openai/gpt-oss-120b` (os Llama 3.3/4 foram desativados pelo Groq em 2026).
 - Nomes de modelo mudam: se der erro 404, troque em ⚙ (padrões: `gemini-3.6-flash` e `gemini-3.5-flash-lite`).
 
 ## Rodar no navegador (desenvolvimento)
